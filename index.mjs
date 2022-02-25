@@ -1,6 +1,7 @@
 import fs from "fs";
 import fetch from "node-fetch";
 import jsdom from "jsdom";
+import { myMangaList } from "./myMangaList.mjs";
 
 const { JSDOM } = jsdom;
 
@@ -21,7 +22,7 @@ const getPaginationLength = async () => {
       return elem.childNodes;
     }
   }).filter((val) => {
-    return !(val === null || val === undefined || val === "");
+    return !!val;
   });
 
   // 一番最後を取得しそのaタグのhrefを取得
@@ -113,8 +114,17 @@ const outputLog = (val) => {
       outputDataAll.push(...outputData);
     }
 
+    // 読んでいる漫画の情報(myMangaList)のみ抽出する
+    let filteredOutputData = [];
+    myMangaList.forEach((mangaTitle) => {
+      const arr = outputDataAll.filter((data) => {
+        return data.includes(mangaTitle);
+      });
+      filteredOutputData.push(...arr);
+    });
+
     // ファイルに書き出す
-    outputMangaInfo(outputDataAll.join("\n"));
+    outputMangaInfo(filteredOutputData.join("\n"));
   } catch (e) {
     outputLog(e.toString());
   }
