@@ -1,21 +1,23 @@
 import fs from "fs";
 import fetch from "node-fetch";
 import jsdom from "jsdom";
+import dotenv from "dotenv";
 import { myMangaList } from "./myMangaList.mjs";
 
 const { JSDOM } = jsdom;
 
+// .envをprocess.envに割当て
+dotenv.config();
+
 // ページネーションの長さを取得する
 const getPaginationLength = async () => {
-  const res = await fetch(
-    "https://www.navi-comi.com/20488/arrival-list/?page=1"
-  );
+  const res = await fetch(process.env.KAIKATSU_MANGA_ARRIVAL_LIST_URL_PAGE1);
   const html = await res.text();
   const dom = new JSDOM(html);
   const document = dom.window.document;
 
   // ページネーション対応
-  const pager = document.querySelectorAll("#list_footer .pager");
+  const pager = document.querySelectorAll(process.env.HTML_PAGER_ID);
   // ページネーション部のli要素のみ抽出
   const pagerLiElems = Array.from(pager[0].childNodes[1].childNodes, (elem) => {
     if (elem.nodeName === "LI") {
@@ -41,16 +43,20 @@ const getFormattedDate = () => {
 
 // テキスト出力
 const outputMangaInfo = (text) => {
-  const outputFilepath = `/Users/tryu/desktop/mangaInfo/mangaInfo_${getFormattedDate()}`;
-  fs.writeFileSync(outputFilepath, text);
+  const outputFilePath = `${
+    process.env.PATH_FOR_OUTPUT_MANGAINFO
+  }${getFormattedDate()}`;
+  fs.writeFileSync(outputFilePath, text);
 };
 
 // ログ出力
 const outputLog = (val) => {
-  const outputFilepath = `/Users/tryu/desktop/mangaInfo/log/mangaInfo_${getFormattedDate()}_log`;
+  const outputFilePath = `${
+    process.env.PATH_FOR_OUTPUT_ERROR_LOG
+  }${getFormattedDate()}_log`;
   const date = new Date();
   try {
-    fs.writeFileSync(outputFilepath, `${date} ${val}`);
+    fs.writeFileSync(outputFilePath, `${date} ${val}`);
   } catch (e) {
     outputLog(e.toString());
   }
@@ -65,21 +71,25 @@ const outputLog = (val) => {
     const outputDataAll = [];
     for (let i = 1; i <= pageLen; i++) {
       const res = await fetch(
-        `https://www.navi-comi.com/20488/arrival-list/?page=${i}`
+        `${process.env.KAIKATSU_MANGA_ARRIVAL_LIST_BASE_URL}${i}`
       );
       const html = await res.text();
       const dom = new JSDOM(html);
       const document = dom.window.document;
 
       // 漫画入荷日付を抽出
-      const arrivalDateNodes = document.querySelectorAll(".arrival_date");
+      const arrivalDateNodes = document.querySelectorAll(
+        process.env.HTML_ARRIVAL_DATE_CLASS
+      );
       // 入荷日付データ
       const arrivalDateList = Array.from(arrivalDateNodes, (date) =>
         date.textContent.trim()
       );
 
       // 漫画のタイトルだけ抽出
-      const arrivalDetailNodes = document.querySelectorAll(".arrival_detail ");
+      const arrivalDetailNodes = document.querySelectorAll(
+        process.env.HTML_ARRIVAL_DETAIL_CLASS
+      );
       const arrivalDetailChildNodes = Array.from(
         arrivalDetailNodes,
         (dd) => dd.childNodes
