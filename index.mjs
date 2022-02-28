@@ -133,8 +133,13 @@ const outputLog = (val) => {
       filteredOutputData.push(...arr);
     });
 
+    // 日付で昇順にソート
+    const sortedOutputData = filteredOutputData.sort((a, b) => {
+      return a.substring(0, 5).trim() > b.substring(0, 5).trim() ? 1 : -1;
+    });
+
     // ファイルに書き出す
-    outputMangaInfo(filteredOutputData.join("\n"));
+    outputMangaInfo(sortedOutputData.join("\n"));
   } catch (e) {
     outputLog(e.toString());
   }
