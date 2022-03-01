@@ -33,6 +33,66 @@ const getPaginationLength = async () => {
   return Number(href.substring(href.indexOf("page=") + 5, href.indexOf("&")));
 };
 
+// 入荷予定日付を返す
+const getArrivalDate = (document) => {
+  return Array.from(
+    document.querySelectorAll(process.env.HTML_ARRIVAL_DATE_CLASS),
+    (date) => date.textContent.trim()
+  );
+};
+
+// 入荷予定漫画タイトルを返す
+const getArrivalMangaTitle = (document) => {
+  // 入荷予定漫画詳細情報
+  const arrivalDetailChildNodes = Array.from(
+    document.querySelectorAll(process.env.HTML_ARRIVAL_DETAIL_CLASS),
+    (dd) => dd.childNodes
+  );
+
+  // 入荷予定漫画詳細情報からタイトルのみ抽出して返す
+  return arrivalDetailChildNodes.map((childNode) => {
+    let mangaTitle = "";
+    childNode.forEach((elem, index) => {
+      if (index === 1) {
+        mangaTitle = elem.textContent.trim();
+      }
+    });
+    return mangaTitle;
+  });
+};
+
+// 読んでいる漫画の情報(myMangaList)のみ抽出する
+const filterManga = (outputDataAll) => {
+  let returnArr = [];
+  myMangaList.forEach((mangaTitle) => {
+    const arr = outputDataAll.filter((data) => {
+      return data.includes(mangaTitle);
+    });
+    returnArr.push(...arr);
+  });
+  return returnArr;
+};
+
+// 日付とタイトルを結合して返す
+const combinedDateAndTitle = (mangaTitleList, arrivalDateList) => {
+  return mangaTitleList.map((mangaTitle, index) => {
+    let joinedData = "";
+    arrivalDateList.forEach((date, dateIndex) => {
+      if (index === dateIndex) {
+        joinedData = `${date} ${mangaTitle}`;
+      }
+    });
+    return joinedData;
+  });
+};
+
+// 日付で昇順にソート
+const sortOutputData = (outputData) => {
+  return outputData.sort((a, b) => {
+    return a.substring(0, 5).trim() > b.substring(0, 5).trim() ? 1 : -1;
+  });
+};
+
 // 日付データ取得
 const getFormattedDate = () => {
   const date = new Date();
@@ -77,66 +137,31 @@ const outputLog = (val) => {
       const dom = new JSDOM(html);
       const document = dom.window.document;
 
-      // 漫画入荷日付を抽出
-      const arrivalDateNodes = document.querySelectorAll(
-        process.env.HTML_ARRIVAL_DATE_CLASS
-      );
       // 入荷日付データ
-      const arrivalDateList = Array.from(arrivalDateNodes, (date) =>
-        date.textContent.trim()
-      );
+      const arrivalDateList = getArrivalDate(document);
 
-      // 漫画のタイトルだけ抽出
-      const arrivalDetailNodes = document.querySelectorAll(
-        process.env.HTML_ARRIVAL_DETAIL_CLASS
-      );
-      const arrivalDetailChildNodes = Array.from(
-        arrivalDetailNodes,
-        (dd) => dd.childNodes
-      );
-      // 漫画タイトルデータ
-      const mangaTitleList = arrivalDetailChildNodes.map((childNode) => {
-        let mangaTitle = "";
-        childNode.forEach((elem, index) => {
-          if (index === 1) {
-            mangaTitle = elem.textContent.trim();
-          }
-        });
-        return mangaTitle;
-      });
+      // 入荷予定漫画詳細情報からタイトルのみ抽出
+      const mangaTitleList = getArrivalMangaTitle(document);
 
       // 件数は同じになるはず
       if (arrivalDateList.length !== mangaTitleList.length)
         throw new Error("漫画の入荷日付数とタイトル数が一致しません。");
 
       // 日付とタイトルを結合
-      const outputData = mangaTitleList.map((mangaTitle, index) => {
-        let joinedData = "";
-        arrivalDateList.forEach((date, dateIndex) => {
-          if (index === dateIndex) {
-            joinedData = `${date} ${mangaTitle}`;
-          }
-        });
-        return joinedData;
-      });
+      const combinedOutputData = combinedDateAndTitle(
+        mangaTitleList,
+        arrivalDateList
+      );
 
       // outputDataを展開して結合していく
-      outputDataAll.push(...outputData);
+      outputDataAll.push(...combinedOutputData);
     }
 
-    // 読んでいる漫画の情報(myMangaList)のみ抽出する
-    let filteredOutputData = [];
-    myMangaList.forEach((mangaTitle) => {
-      const arr = outputDataAll.filter((data) => {
-        return data.includes(mangaTitle);
-      });
-      filteredOutputData.push(...arr);
-    });
+    // 読んでいる漫画のみ抽出する
+    const filteredOutputData = filterManga(outputDataAll);
 
     // 日付で昇順にソート
-    const sortedOutputData = filteredOutputData.sort((a, b) => {
-      return a.substring(0, 5).trim() > b.substring(0, 5).trim() ? 1 : -1;
-    });
+    const sortedOutputData = sortOutputData(filteredOutputData);
 
     // ファイルに書き出す
     outputMangaInfo(sortedOutputData.join("\n"));
