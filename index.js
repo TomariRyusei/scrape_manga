@@ -2,6 +2,7 @@ import fs from "fs";
 import fetch from "node-fetch";
 import jsdom from "jsdom";
 import dotenv from "dotenv";
+import nodemailer from "nodemailer";
 import { myMangaList } from "./myMangaList.js";
 
 const { JSDOM } = jsdom;
@@ -101,14 +102,6 @@ const getFormattedDate = () => {
   return y + m;
 };
 
-// テキスト出力
-const outputMangaInfo = (text) => {
-  const outputFilePath = `${
-    process.env.PATH_FOR_OUTPUT_MANGAINFO
-  }${getFormattedDate()}`;
-  fs.writeFileSync(outputFilePath, text);
-};
-
 // ログ出力
 const outputLog = (val) => {
   const outputFilePath = `${
@@ -121,6 +114,38 @@ const outputLog = (val) => {
     outputLog(e.toString());
   }
 };
+
+// メール送信関数
+function sendMail(mailContent) {
+  // smtp情報
+  const smtpData = {
+    host: "smtp.gmail.com",
+    port: "465",
+    secure: true,
+    auth: {
+      user: process.env.GMAIL_ADDRESS,
+      pass: process.env.GMAIL_APP_PASS,
+    },
+  };
+
+  // メール内容
+  const mailData = {
+    from: "テストユーザ",
+    to: process.env.GMAIL_ADDRESS,
+    subject: `${getFormattedDate()}の新刊入荷情報`,
+    text: mailContent.join("\n"),
+  };
+
+  // SMTPサーバの情報をまとめる
+  const transporter = nodemailer.createTransport(smtpData);
+
+  // メール送信
+  transporter.sendMail(mailData, (e) => {
+    if (e) {
+      outputLog(e);
+    }
+  });
+}
 
 (async () => {
   try {
@@ -163,8 +188,8 @@ const outputLog = (val) => {
     // 日付で昇順にソート
     const sortedOutputData = sortOutputData(filteredOutputData);
 
-    // ファイルに書き出す
-    outputMangaInfo(sortedOutputData.join("\n"));
+    // メール送信
+    sendMail(sortedOutputData);
   } catch (e) {
     outputLog(e.toString());
   }
