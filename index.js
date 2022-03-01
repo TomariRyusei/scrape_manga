@@ -2,7 +2,7 @@ import fs from "fs";
 import fetch from "node-fetch";
 import jsdom from "jsdom";
 import dotenv from "dotenv";
-import { myMangaList } from "./myMangaList.mjs";
+import { myMangaList } from "./myMangaList.js";
 
 const { JSDOM } = jsdom;
 
