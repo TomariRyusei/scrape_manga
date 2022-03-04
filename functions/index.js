@@ -1,24 +1,43 @@
-import fs from "fs";
-import fetch from "node-fetch";
-import jsdom from "jsdom";
-import dotenv from "dotenv";
-import nodemailer from "nodemailer";
-import { myMangaList } from "./myMangaList.js";
+const functions = require("firebase-functions");
+const fetch = require("node-fetch");
+const jsdom = require("jsdom");
+const nodemailer = require("nodemailer");
 
 const { JSDOM } = jsdom;
 
-// .envをprocess.envに割当て
-dotenv.config();
+const config = functions.config();
+
+// 購読している漫画リスト
+const myMangaList = [
+  "化物語",
+  "健康で文化的な最低限度の生活",
+  "東京卍リベンジャーズ",
+  "JUMBO MAX",
+  "九条の大罪",
+  "チ。",
+  "BORUTO",
+  "彼岸島",
+  "左利きのエレン",
+  "GANTZ:E",
+  "イヌノサバキ",
+  "血の轍",
+  "たかが黄昏れ",
+  "食糧人類Re",
+  "君が獣になる前に",
+  "鑑定眼 もっとも高価な死に方",
+  "刃牙道",
+  "外道の歌",
+];
 
 // ページネーションの長さを取得する
 const getPaginationLength = async () => {
-  const res = await fetch(process.env.KAIKATSU_MANGA_ARRIVAL_LIST_URL_PAGE1);
+  const res = await fetch(config.kaikatsu_manga_arrival_list_url.page1);
   const html = await res.text();
   const dom = new JSDOM(html);
   const document = dom.window.document;
 
   // ページネーション対応
-  const pager = document.querySelectorAll(process.env.HTML_PAGER_ID);
+  const pager = document.querySelectorAll(config.html.pager_id);
   // ページネーション部のli要素のみ抽出
   const pagerLiElems = Array.from(pager[0].childNodes[1].childNodes, (elem) => {
     if (elem.nodeName === "LI") {
@@ -37,7 +56,7 @@ const getPaginationLength = async () => {
 // 入荷予定日付を返す
 const getArrivalDate = (document) => {
   return Array.from(
-    document.querySelectorAll(process.env.HTML_ARRIVAL_DATE_CLASS),
+    document.querySelectorAll(config.html.arrival_date_class),
     (date) => date.textContent.trim()
   );
 };
@@ -46,7 +65,7 @@ const getArrivalDate = (document) => {
 const getArrivalMangaTitle = (document) => {
   // 入荷予定漫画詳細情報
   const arrivalDetailChildNodes = Array.from(
-    document.querySelectorAll(process.env.HTML_ARRIVAL_DETAIL_CLASS),
+    document.querySelectorAll(config.html.arrival_detail_class),
     (dd) => dd.childNodes
   );
 
@@ -102,19 +121,6 @@ const getFormattedDate = () => {
   return y + m;
 };
 
-// ログ出力
-const outputLog = (val) => {
-  const outputFilePath = `${
-    process.env.PATH_FOR_OUTPUT_ERROR_LOG
-  }${getFormattedDate()}_log`;
-  const date = new Date();
-  try {
-    fs.writeFileSync(outputFilePath, `${date} ${val}`);
-  } catch (e) {
-    outputLog(e.toString());
-  }
-};
-
 // メール送信関数
 function sendMail(mailContent) {
   // smtp情報
@@ -123,15 +129,15 @@ function sendMail(mailContent) {
     port: "465",
     secure: true,
     auth: {
-      user: process.env.GMAIL_ADDRESS,
-      pass: process.env.GMAIL_APP_PASS,
+      user: config.gmail.email,
+      pass: config.gmail.password,
     },
   };
 
   // メール内容
   const mailData = {
     from: "テストユーザ",
-    to: process.env.GMAIL_ADDRESS,
+    to: config.gmail.email,
     subject: `${getFormattedDate()}の新刊入荷情報`,
     text: mailContent.join("\n"),
   };
@@ -142,13 +148,16 @@ function sendMail(mailContent) {
   // メール送信
   transporter.sendMail(mailData, (e) => {
     if (e) {
-      outputLog(e);
+      console.log(e);
     }
   });
 }
 
-(async () => {
-  try {
+exports.scheduledFunction = functions
+  .region("asia-northeast1")
+  .pubsub.schedule("5 0 1 * *")
+  .timeZone("Asia/Tokyo")
+  .onRun(async () => {
     // ページネーションの長さ
     const pageLen = await getPaginationLength();
 
@@ -156,7 +165,7 @@ function sendMail(mailContent) {
     const outputDataAll = [];
     for (let i = 1; i <= pageLen; i++) {
       const res = await fetch(
-        `${process.env.KAIKATSU_MANGA_ARRIVAL_LIST_BASE_URL}${i}`
+        `${config.kaikatsu_manga_arrival_list_url.base}${i}`
       );
       const html = await res.text();
       const dom = new JSDOM(html);
@@ -190,7 +199,4 @@ function sendMail(mailContent) {
 
     // メール送信
     sendMail(sortedOutputData);
-  } catch (e) {
-    outputLog(e.toString());
-  }
-})();
+  });
