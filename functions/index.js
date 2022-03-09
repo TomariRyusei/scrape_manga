@@ -1,4 +1,5 @@
 const functions = require("firebase-functions");
+const admin = require("firebase-admin");
 const fetch = require("node-fetch");
 const jsdom = require("jsdom");
 const nodemailer = require("nodemailer");
@@ -7,27 +8,8 @@ const { JSDOM } = jsdom;
 
 const config = functions.config();
 
-// 購読している漫画リスト
-const myMangaList = [
-  "化物語",
-  "健康で文化的な最低限度の生活",
-  "東京卍リベンジャーズ",
-  "JUMBO MAX",
-  "九条の大罪",
-  "チ。",
-  "BORUTO",
-  "彼岸島",
-  "左利きのエレン",
-  "GANTZ:E",
-  "イヌノサバキ",
-  "血の轍",
-  "たかが黄昏れ",
-  "食糧人類Re",
-  "君が獣になる前に",
-  "鑑定眼 もっとも高価な死に方",
-  "刃牙道",
-  "外道の歌",
-];
+admin.initializeApp(config.firebase);
+const firestore = admin.firestore();
 
 // ページネーションの長さを取得する
 const getPaginationLength = async () => {
@@ -51,6 +33,15 @@ const getPaginationLength = async () => {
   const lastLiElem = pagerLiElems.slice(-1)[0];
   const href = lastLiElem[0].href;
   return Number(href.substring(href.indexOf("page=") + 5, href.indexOf("&")));
+};
+
+// 購読している漫画リストを取得
+const getMyMangaList = async () => {
+  const snapShot = await firestore.collection("mangalist").get();
+  const data = snapShot.docs.map((doc) => {
+    return doc.data().title;
+  });
+  return data;
 };
 
 // 入荷予定日付を返す
@@ -82,7 +73,9 @@ const getArrivalMangaTitle = (document) => {
 };
 
 // 読んでいる漫画の情報(myMangaList)のみ抽出する
-const filterManga = (outputDataAll) => {
+const filterManga = async (outputDataAll) => {
+  // 購読している漫画リストを取得
+  const myMangaList = await getMyMangaList();
   let returnArr = [];
   myMangaList.forEach((mangaTitle) => {
     const arr = outputDataAll.filter((data) => {
@@ -160,7 +153,6 @@ exports.scheduledFunction = functions
   .onRun(async () => {
     // ページネーションの長さ
     const pageLen = await getPaginationLength();
-
     // ページネーション分ループ
     const outputDataAll = [];
     for (let i = 1; i <= pageLen; i++) {
@@ -170,33 +162,25 @@ exports.scheduledFunction = functions
       const html = await res.text();
       const dom = new JSDOM(html);
       const document = dom.window.document;
-
       // 入荷日付データ
       const arrivalDateList = getArrivalDate(document);
-
       // 入荷予定漫画詳細情報からタイトルのみ抽出
       const mangaTitleList = getArrivalMangaTitle(document);
-
       // 件数は同じになるはず
       if (arrivalDateList.length !== mangaTitleList.length)
         throw new Error("漫画の入荷日付数とタイトル数が一致しません。");
-
       // 日付とタイトルを結合
       const combinedOutputData = combinedDateAndTitle(
         mangaTitleList,
         arrivalDateList
       );
-
       // outputDataを展開して結合していく
       outputDataAll.push(...combinedOutputData);
     }
-
     // 読んでいる漫画のみ抽出する
-    const filteredOutputData = filterManga(outputDataAll);
-
+    const filteredOutputData = await filterManga(outputDataAll);
     // 日付で昇順にソート
     const sortedOutputData = sortOutputData(filteredOutputData);
-
     // メール送信
     sendMail(sortedOutputData);
   });
