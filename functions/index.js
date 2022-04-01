@@ -109,8 +109,8 @@ const sortOutputData = (outputData) => {
 // 日付データ取得
 const getFormattedDate = () => {
   const date = new Date();
-  const y = date.getFullYear();
-  const m = ("0" + (date.getMonth() + 1)).slice(-2);
+  const y = `${date.getFullYear()}年`;
+  const m = `${date.getMonth() + 1}月`;
   return y + m;
 };
 
@@ -148,7 +148,7 @@ function sendMail(mailContent) {
 
 exports.scheduledFunction = functions
   .region("asia-northeast1")
-  .pubsub.schedule("5 0 1 * *")
+  .pubsub.schedule("0 8 1 * *")
   .timeZone("Asia/Tokyo")
   .onRun(async () => {
     // ページネーションの長さ
