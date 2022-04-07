@@ -72,7 +72,7 @@ const getArrivalMangaTitle = (document) => {
   });
 };
 
-// 読んでいる漫画の情報(myMangaList)のみ抽出する
+// 読んでいる漫画の情報のみ抽出する
 const filterManga = async (outputDataAll) => {
   // 購読している漫画リストを取得
   const myMangaList = await getMyMangaList();
@@ -102,7 +102,10 @@ const combinedDateAndTitle = (mangaTitleList, arrivalDateList) => {
 // 日付で昇順にソート
 const sortOutputData = (outputData) => {
   return outputData.sort((a, b) => {
-    return a.substring(0, 5).trim() > b.substring(0, 5).trim() ? 1 : -1;
+    // それぞれ日付を取得して比較
+    const day1 = Number(a.split(" ")[0].split("/")[1]);
+    const day2 = Number(b.split(" ")[0].split("/")[1]);
+    return day1 > day2 ? 1 : -1;
   });
 };
 
