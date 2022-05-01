@@ -100,7 +100,7 @@ const combinedDateAndTitle = (mangaTitleList, arrivalDateList) => {
 };
 
 // 日付で昇順にソート
-const sortOutputData = (outputData) => {
+const sortDateInASC = (outputData) => {
   return outputData.sort((a, b) => {
     // それぞれ日付を取得して比較
     const day1 = Number(a.split(" ")[0].split("/")[1]);
@@ -111,7 +111,10 @@ const sortOutputData = (outputData) => {
 
 // 日付データ取得
 const getFormattedDate = () => {
-  const date = new Date();
+  const japanLocaleString = new Date().toLocaleString("ja-JP", {
+    timeZone: "Asia/Tokyo",
+  });
+  const date = new Date(japanLocaleString);
   const y = `${date.getFullYear()}年`;
   const m = `${date.getMonth() + 1}月`;
   return y + m;
@@ -183,7 +186,7 @@ exports.scheduledFunction = functions
     // 読んでいる漫画のみ抽出する
     const filteredOutputData = await filterManga(outputDataAll);
     // 日付で昇順にソート
-    const sortedOutputData = sortOutputData(filteredOutputData);
+    const sortedOutputData = sortDateInASC(filteredOutputData);
     // メール送信
     sendMail(sortedOutputData);
   });
